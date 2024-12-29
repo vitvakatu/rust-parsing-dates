@@ -64,6 +64,12 @@ fn parse_date_bad(raw: &str) -> Option<Date> {
 }
 
 fn main() {
-    let date = parse_date_good("2024-02-31");
-    println!("{:?}", date);
+    let dates = ["2024-02-31", "64000-6-15"];
+    for date in dates {
+        let date_good = parse_date_good(date);
+        let date_bad = parse_date_bad(date);
+        println!("Date: {}", date);
+        println!("\t Good parsing: {:?}", date_good);
+        println!("\t Bad parsing: {:?}", date_bad);
+    }
 }
