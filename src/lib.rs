@@ -30,75 +30,65 @@ fn is_leap_year(year: u16) -> bool {
     year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)
 }
 
+type Range = std::ops::RangeInclusive<u16>;
 #[derive(Debug, Snafu, PartialEq)]
 pub enum DateParseError {
     #[snafu(display("Input is empty"))]
     InputIsEmpty,
-    #[snafu(display("Year is missing"))]
-    YearMissing,
-    #[snafu(display("Year is out of range: {}-{}", range.start(), range.end()))]
-    YearOutOfRange {
-        range: std::ops::RangeInclusive<u16>,
+    #[snafu(display("{} is missing", component_name))]
+    ComponentMissing { component_name: String },
+    #[snafu(display("{} is not {} digits", component_name, expected_len))]
+    ComponentLengthMismatch {
+        component_name: String,
+        expected_len: usize,
     },
-    #[snafu(display("Year is not four digits"))]
-    YearIsNotFourDigits,
-    #[snafu(display("Year is not a number: {}", source))]
-    YearNotANumber { source: std::num::ParseIntError },
-    #[snafu(display("Month is missing"))]
-    MonthMissing,
-    #[snafu(display("Month is not two digits"))]
-    MonthIsNotTwoDigits,
-    #[snafu(display("Month is out of range: {}-{}", range.start(), range.end()))]
-    MonthOutOfRange {
-        range: std::ops::RangeInclusive<u16>,
+    #[snafu(display("{} is not a number: {}", component_name, source))]
+    ComponentNotANumber {
+        component_name: String,
+        source: std::num::ParseIntError,
     },
-    #[snafu(display("Month is not a number: {}", source))]
-    MonthNotANumber { source: std::num::ParseIntError },
-    #[snafu(display("Day is missing"))]
-    DayMissing,
-    #[snafu(display("Day is not two digits"))]
-    DayIsNotTwoDigits,
-    #[snafu(display("Day is out of range: {}-{}", range.start(), range.end()))]
-    DayOutOfRange {
-        range: std::ops::RangeInclusive<u16>,
+    #[snafu(display("{} is out of range: {}-{}", component_name, range.start(), range.end()))]
+    ComponentOutOfRange {
+        component_name: String,
+        range: Range,
     },
-    #[snafu(display("Day is not a number: {}", source))]
-    DayNotANumber { source: std::num::ParseIntError },
+}
+
+fn parse_date_component<'a>(
+    components: &mut impl Iterator<Item = &'a str>,
+    allowed_range: Range,
+    component_name: &str,
+    component_str_len: usize,
+) -> Result<u16, DateParseError> {
+    let component = components
+        .next()
+        .context(ComponentMissingSnafu { component_name })?;
+    ensure!(
+        component.len() == component_str_len,
+        ComponentLengthMismatchSnafu {
+            component_name,
+            expected_len: component_str_len
+        }
+    );
+    let component = component
+        .parse()
+        .context(ComponentNotANumberSnafu { component_name })?;
+    if !allowed_range.contains(&component) {
+        return ComponentOutOfRangeSnafu {
+            component_name,
+            range: allowed_range,
+        }
+        .fail();
+    }
+    Ok(component)
 }
 
 pub fn parse_date_good(raw: &str) -> Result<Date, DateParseError> {
     ensure!(!raw.is_empty(), InputIsEmptySnafu);
     let mut components = raw.split('-');
-    let year = components.next().context(YearMissingSnafu)?;
-    ensure!(year.len() == 4, YearIsNotFourDigitsSnafu);
-    let year = year.parse().context(YearNotANumberSnafu)?;
-    let allowed_years = 1970..=9999;
-    if !allowed_years.contains(&year) {
-        return YearOutOfRangeSnafu {
-            range: allowed_years,
-        }
-        .fail();
-    }
-    let month = components.next().context(MonthMissingSnafu)?;
-    ensure!(month.len() == 2, MonthIsNotTwoDigitsSnafu);
-    let month = month.parse().context(MonthNotANumberSnafu)?;
-    let allowed_months = 1..=12;
-    if !allowed_months.contains(&month) {
-        return MonthOutOfRangeSnafu {
-            range: allowed_months,
-        }
-        .fail();
-    }
-    let day = components.next().context(DayMissingSnafu)?;
-    ensure!(day.len() == 2, DayIsNotTwoDigitsSnafu);
-    let day = day.parse().context(DayNotANumberSnafu)?;
-    let allowed_days = 1..=days_in_month(month, year);
-    if !allowed_days.contains(&day) {
-        return DayOutOfRangeSnafu {
-            range: allowed_days,
-        }
-        .fail();
-    }
+    let year = parse_date_component(&mut components, 1970..=9999, "year", 4)?;
+    let month = parse_date_component(&mut components, 1..=12, "month", 2)?;
+    let day = parse_date_component(&mut components, 1..=days_in_month(month, year), "day", 2)?;
     let date = Date { year, month, day };
     Ok(date)
 }
