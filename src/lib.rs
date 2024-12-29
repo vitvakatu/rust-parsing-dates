@@ -31,13 +31,13 @@ fn is_leap_year(year: u16) -> bool {
 #[derive(Debug, PartialEq, Eq)]
 pub enum DateParseError {
     YearMissing,
-    YearOutOfRange,
+    YearOutOfRange(std::ops::Range<u16>),
     YearNotANumber(std::num::ParseIntError),
     MonthMissing,
-    MonthOutOfRange,
+    MonthOutOfRange(std::ops::Range<u16>),
     MonthNotANumber(std::num::ParseIntError),
     DayMissing,
-    DayOutOfRange,
+    DayOutOfRange(std::ops::Range<u16>),
     DayNotANumber(std::num::ParseIntError),
 }
 
@@ -45,13 +45,19 @@ impl std::fmt::Display for DateParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             DateParseError::YearMissing => write!(f, "Year is missing"),
-            DateParseError::YearOutOfRange => write!(f, "Year is out of range"),
+            DateParseError::YearOutOfRange(range) => {
+                write!(f, "Year is out of range: {}-{}", range.start, range.end)
+            }
             DateParseError::YearNotANumber(e) => write!(f, "Year is not a number: {}", e),
             DateParseError::MonthMissing => write!(f, "Month is missing"),
-            DateParseError::MonthOutOfRange => write!(f, "Month is out of range"),
+            DateParseError::MonthOutOfRange(range) => {
+                write!(f, "Month is out of range: {}-{}", range.start, range.end)
+            }
             DateParseError::MonthNotANumber(e) => write!(f, "Month is not a number: {}", e),
             DateParseError::DayMissing => write!(f, "Day is missing"),
-            DateParseError::DayOutOfRange => write!(f, "Day is out of range"),
+            DateParseError::DayOutOfRange(range) => {
+                write!(f, "Day is out of range: {}-{}", range.start, range.end)
+            }
             DateParseError::DayNotANumber(e) => write!(f, "Day is not a number: {}", e),
         }
     }
@@ -76,7 +82,7 @@ pub fn parse_date_good(raw: &str) -> Result<Date, DateParseError> {
         .parse()
         .map_err(DateParseError::YearNotANumber)?;
     if year < 1970 || year > 9999 {
-        return Err(DateParseError::YearOutOfRange);
+        return Err(DateParseError::YearOutOfRange(1970..9999));
     }
     let month = components
         .next()
@@ -84,7 +90,7 @@ pub fn parse_date_good(raw: &str) -> Result<Date, DateParseError> {
         .parse()
         .map_err(DateParseError::MonthNotANumber)?;
     if month < 1 || month > 12 {
-        return Err(DateParseError::MonthOutOfRange);
+        return Err(DateParseError::MonthOutOfRange(1..12));
     }
     let day = components
         .next()
@@ -92,7 +98,7 @@ pub fn parse_date_good(raw: &str) -> Result<Date, DateParseError> {
         .parse()
         .map_err(DateParseError::DayNotANumber)?;
     if day < 1 || day > days_in_month(month, year) {
-        return Err(DateParseError::DayOutOfRange);
+        return Err(DateParseError::DayOutOfRange(1..days_in_month(month, year)));
     }
     let date = Date { year, month, day };
     Ok(date)
