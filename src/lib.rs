@@ -1,3 +1,5 @@
+use snafu::prelude::*;
+
 mod bad;
 pub use bad::parse_date_bad;
 
@@ -28,77 +30,57 @@ fn is_leap_year(year: u16) -> bool {
     year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Snafu, PartialEq)]
 pub enum DateParseError {
+    #[snafu(display("Year is missing"))]
     YearMissing,
-    YearOutOfRange(std::ops::Range<u16>),
-    YearNotANumber(std::num::ParseIntError),
+    #[snafu(display("Year is out of range: {}-{}", range.start, range.end))]
+    YearOutOfRange { range: std::ops::Range<u16> },
+    #[snafu(display("Year is not a number: {}", source))]
+    YearNotANumber { source: std::num::ParseIntError },
+    #[snafu(display("Month is missing"))]
     MonthMissing,
-    MonthOutOfRange(std::ops::Range<u16>),
-    MonthNotANumber(std::num::ParseIntError),
+    #[snafu(display("Month is out of range: {}-{}", range.start, range.end))]
+    MonthOutOfRange { range: std::ops::Range<u16> },
+    #[snafu(display("Month is not a number: {}", source))]
+    MonthNotANumber { source: std::num::ParseIntError },
+    #[snafu(display("Day is missing"))]
     DayMissing,
-    DayOutOfRange(std::ops::Range<u16>),
-    DayNotANumber(std::num::ParseIntError),
+    #[snafu(display("Day is out of range: {}-{}", range.start, range.end))]
+    DayOutOfRange { range: std::ops::Range<u16> },
+    #[snafu(display("Day is not a number: {}", source))]
+    DayNotANumber { source: std::num::ParseIntError },
 }
 
-impl std::fmt::Display for DateParseError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            DateParseError::YearMissing => write!(f, "Year is missing"),
-            DateParseError::YearOutOfRange(range) => {
-                write!(f, "Year is out of range: {}-{}", range.start, range.end)
-            }
-            DateParseError::YearNotANumber(e) => write!(f, "Year is not a number: {}", e),
-            DateParseError::MonthMissing => write!(f, "Month is missing"),
-            DateParseError::MonthOutOfRange(range) => {
-                write!(f, "Month is out of range: {}-{}", range.start, range.end)
-            }
-            DateParseError::MonthNotANumber(e) => write!(f, "Month is not a number: {}", e),
-            DateParseError::DayMissing => write!(f, "Day is missing"),
-            DateParseError::DayOutOfRange(range) => {
-                write!(f, "Day is out of range: {}-{}", range.start, range.end)
-            }
-            DateParseError::DayNotANumber(e) => write!(f, "Day is not a number: {}", e),
-        }
-    }
-}
-
-impl std::error::Error for DateParseError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            DateParseError::YearNotANumber(e) => Some(e),
-            DateParseError::MonthNotANumber(e) => Some(e),
-            DateParseError::DayNotANumber(e) => Some(e),
-            _ => None,
-        }
-    }
-}
 
 pub fn parse_date_good(raw: &str) -> Result<Date, DateParseError> {
     let mut components = raw.split('-');
     let year = components
         .next()
-        .ok_or(DateParseError::YearMissing)?
+        .context(YearMissingSnafu)?
         .parse()
-        .map_err(DateParseError::YearNotANumber)?;
-    if year < 1970 || year > 9999 {
-        return Err(DateParseError::YearOutOfRange(1970..9999));
+        .context(YearNotANumberSnafu)?;
+    let allowed_years = 1970..9999;
+    if !allowed_years.contains(&year) {
+        return YearOutOfRangeSnafu { range: allowed_years }.fail();
     }
     let month = components
         .next()
-        .ok_or(DateParseError::MonthMissing)?
+        .context(MonthMissingSnafu)?
         .parse()
-        .map_err(DateParseError::MonthNotANumber)?;
-    if month < 1 || month > 12 {
-        return Err(DateParseError::MonthOutOfRange(1..12));
+        .context(MonthNotANumberSnafu)?;
+    let allowed_months = 1..12;
+    if !allowed_months.contains(&month) {
+        return MonthOutOfRangeSnafu { range: allowed_months }.fail();
     }
     let day = components
         .next()
-        .ok_or(DateParseError::DayMissing)?
+        .context(DayMissingSnafu)?
         .parse()
-        .map_err(DateParseError::DayNotANumber)?;
-    if day < 1 || day > days_in_month(month, year) {
-        return Err(DateParseError::DayOutOfRange(1..days_in_month(month, year)));
+        .context(DayNotANumberSnafu)?;
+    let allowed_days = 1..days_in_month(month, year);
+    if !allowed_days.contains(&day) {
+        return DayOutOfRangeSnafu { range: allowed_days }.fail();
     }
     let date = Date { year, month, day };
     Ok(date)
