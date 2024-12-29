@@ -30,7 +30,7 @@ fn is_leap_year(year: u16) -> bool {
 fn parse_date_good(raw: &str) -> Option<Date> {
     let mut components = raw.split('-');
     let year = components.next()?.parse().ok()?;
-    if year < 1970 {
+    if year < 1970 || year > 9999 {
         return None;
     }
     let month = components.next()?.parse().ok()?;
