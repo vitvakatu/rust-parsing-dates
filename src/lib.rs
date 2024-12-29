@@ -35,6 +35,12 @@ type Range = std::ops::RangeInclusive<u16>;
 pub enum DateParseError {
     #[snafu(display("Input is empty"))]
     InputIsEmpty,
+    #[snafu(display("{}", source))]
+    ComponentParseError { source: DateComponentParseError },
+}
+
+#[derive(Debug, Snafu, PartialEq)]
+pub enum DateComponentParseError {
     #[snafu(display("{} is missing", component_name))]
     ComponentMissing { component_name: String },
     #[snafu(display("{} is not {} digits", component_name, expected_len))]
@@ -56,27 +62,27 @@ pub enum DateParseError {
 
 fn parse_date_component<'a>(
     components: &mut impl Iterator<Item = &'a str>,
-    allowed_range: Range,
+    range: Range,
     component_name: &str,
-    component_str_len: usize,
-) -> Result<u16, DateParseError> {
+    expected_len: usize,
+) -> Result<u16, DateComponentParseError> {
     let component = components
         .next()
         .context(ComponentMissingSnafu { component_name })?;
     ensure!(
-        component.len() == component_str_len,
+        component.len() == expected_len,
         ComponentLengthMismatchSnafu {
             component_name,
-            expected_len: component_str_len
+            expected_len
         }
     );
     let component = component
         .parse()
         .context(ComponentNotANumberSnafu { component_name })?;
-    if !allowed_range.contains(&component) {
+    if !range.contains(&component) {
         return ComponentOutOfRangeSnafu {
             component_name,
-            range: allowed_range,
+            range,
         }
         .fail();
     }
@@ -86,9 +92,12 @@ fn parse_date_component<'a>(
 pub fn parse_date_good(raw: &str) -> Result<Date, DateParseError> {
     ensure!(!raw.is_empty(), InputIsEmptySnafu);
     let mut components = raw.split('-');
-    let year = parse_date_component(&mut components, 1970..=9999, "year", 4)?;
-    let month = parse_date_component(&mut components, 1..=12, "month", 2)?;
-    let day = parse_date_component(&mut components, 1..=days_in_month(month, year), "day", 2)?;
+    let year = parse_date_component(&mut components, 1970..=9999, "year", 4)
+        .context(ComponentParseSnafu)?;
+    let month =
+        parse_date_component(&mut components, 1..=12, "month", 2).context(ComponentParseSnafu)?;
+    let day = parse_date_component(&mut components, 1..=days_in_month(month, year), "day", 2)
+        .context(ComponentParseSnafu)?;
     let date = Date { year, month, day };
     Ok(date)
 }
