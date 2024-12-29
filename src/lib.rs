@@ -36,8 +36,10 @@ pub enum DateParseError {
     InputIsEmpty,
     #[snafu(display("Year is missing"))]
     YearMissing,
-    #[snafu(display("Year is out of range: {}-{}", range.start, range.end))]
-    YearOutOfRange { range: std::ops::Range<u16> },
+    #[snafu(display("Year is out of range: {}-{}", range.start(), range.end()))]
+    YearOutOfRange {
+        range: std::ops::RangeInclusive<u16>,
+    },
     #[snafu(display("Year is not four digits"))]
     YearIsNotFourDigits,
     #[snafu(display("Year is not a number: {}", source))]
@@ -46,16 +48,20 @@ pub enum DateParseError {
     MonthMissing,
     #[snafu(display("Month is not two digits"))]
     MonthIsNotTwoDigits,
-    #[snafu(display("Month is out of range: {}-{}", range.start, range.end))]
-    MonthOutOfRange { range: std::ops::Range<u16> },
+    #[snafu(display("Month is out of range: {}-{}", range.start(), range.end()))]
+    MonthOutOfRange {
+        range: std::ops::RangeInclusive<u16>,
+    },
     #[snafu(display("Month is not a number: {}", source))]
     MonthNotANumber { source: std::num::ParseIntError },
     #[snafu(display("Day is missing"))]
     DayMissing,
     #[snafu(display("Day is not two digits"))]
     DayIsNotTwoDigits,
-    #[snafu(display("Day is out of range: {}-{}", range.start, range.end))]
-    DayOutOfRange { range: std::ops::Range<u16> },
+    #[snafu(display("Day is out of range: {}-{}", range.start(), range.end()))]
+    DayOutOfRange {
+        range: std::ops::RangeInclusive<u16>,
+    },
     #[snafu(display("Day is not a number: {}", source))]
     DayNotANumber { source: std::num::ParseIntError },
 }
@@ -66,7 +72,7 @@ pub fn parse_date_good(raw: &str) -> Result<Date, DateParseError> {
     let year = components.next().context(YearMissingSnafu)?;
     ensure!(year.len() == 4, YearIsNotFourDigitsSnafu);
     let year = year.parse().context(YearNotANumberSnafu)?;
-    let allowed_years = 1970..9999;
+    let allowed_years = 1970..=9999;
     if !allowed_years.contains(&year) {
         return YearOutOfRangeSnafu {
             range: allowed_years,
@@ -76,7 +82,7 @@ pub fn parse_date_good(raw: &str) -> Result<Date, DateParseError> {
     let month = components.next().context(MonthMissingSnafu)?;
     ensure!(month.len() == 2, MonthIsNotTwoDigitsSnafu);
     let month = month.parse().context(MonthNotANumberSnafu)?;
-    let allowed_months = 1..12;
+    let allowed_months = 1..=12;
     if !allowed_months.contains(&month) {
         return MonthOutOfRangeSnafu {
             range: allowed_months,
@@ -86,7 +92,7 @@ pub fn parse_date_good(raw: &str) -> Result<Date, DateParseError> {
     let day = components.next().context(DayMissingSnafu)?;
     ensure!(day.len() == 2, DayIsNotTwoDigitsSnafu);
     let day = day.parse().context(DayNotANumberSnafu)?;
-    let allowed_days = 1..days_in_month(month, year);
+    let allowed_days = 1..=days_in_month(month, year);
     if !allowed_days.contains(&day) {
         return DayOutOfRangeSnafu {
             range: allowed_days,
