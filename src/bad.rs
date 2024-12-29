@@ -1,5 +1,5 @@
-use std::str::FromStr;
 use crate::Date;
+use std::str::FromStr;
 
 pub fn parse_date_bad(raw: &str) -> Option<Date> {
     let mut date = Date {

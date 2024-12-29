@@ -1,5 +1,5 @@
-use parsing_dates::parse_date_good;
 use parsing_dates::parse_date_bad;
+use parsing_dates::parse_date_good;
 
 fn main() {
     let dates = [
@@ -8,13 +8,18 @@ fn main() {
         "01985-04-05",
         "",
         "3615-05",
+        "2439-xa-15",
         "1973-2-3",
     ];
     for date in dates {
         let date_good = parse_date_good(date);
         let date_bad = parse_date_bad(date);
         println!("Date: {:?}", date);
-        println!("\t Good parsing: {:?}", date_good);
+        if let Ok(date_good) = date_good {
+            println!("\t Good parsing: {:?}", date_good);
+        } else {
+            println!("\t Good parsing: {}", date_good.unwrap_err());
+        }
         println!("\t Bad parsing: {:?}", date_bad);
     }
 }
