@@ -7,7 +7,45 @@ pub struct Date {
     day: u16,
 }
 
-pub fn parse_date_bad(raw: &str) -> Option<Date> {
+fn days_in_month(month: u16, year: u16) -> u16 {
+    match month {
+        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+        4 | 6 | 9 | 11 => 30,
+        2 => {
+            if is_leap_year(year) {
+                29
+            } else {
+                28
+            }
+        }
+
+        _ => unreachable!(),
+    }
+}
+
+fn is_leap_year(year: u16) -> bool {
+    year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)
+}
+
+fn parse_date_good(raw: &str) -> Option<Date> {
+    let mut components = raw.split('-');
+    let year = components.next()?.parse().ok()?;
+    if year < 1970 {
+        return None;
+    }
+    let month = components.next()?.parse().ok()?;
+    if month < 1 || month > 12 {
+        return None;
+    }
+    let day = components.next()?.parse().ok()?;
+    if day < 1 || day > days_in_month(month, year) {
+        return None;
+    }
+    let date = Date { year, month, day };
+    Some(date)
+}
+
+fn parse_date_bad(raw: &str) -> Option<Date> {
     let mut date = Date {
         year: 0,
         month: 0,
@@ -26,6 +64,6 @@ pub fn parse_date_bad(raw: &str) -> Option<Date> {
 }
 
 fn main() {
-    let date = parse_date_bad("2024-12-29");
+    let date = parse_date_good("2024-02-31");
     println!("{:?}", date);
 }
