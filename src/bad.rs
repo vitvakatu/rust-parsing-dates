@@ -30,17 +30,13 @@ impl FromStr for Version {
     type Err = VersionParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let [mut major, mut minor] = [0; 2];
-
-        for (idx, str) in s.split('_').enumerate() {
-            match (idx, str) {
-                (0, "VK" | "VKSC") => {}
-                (1, "VERSION") => {}
-                (2, major_str) => major = major_str.parse().unwrap(),
-                (3, minor_str) => minor = minor_str.parse().unwrap(),
-                _ => return Err(VersionParseError),
+        match s.split('_').collect::<Vec<_>>().as_slice() {
+            ["VK" | "VKSC", "VERSION", major, minor] => {
+                let major = major.parse().map_err(|_| VersionParseError)?;
+                let minor = minor.parse().map_err(|_| VersionParseError)?;
+                Ok(Version { major, minor })
             }
+            _ => Err(VersionParseError),
         }
-        Ok(Version { major, minor })
     }
 }
