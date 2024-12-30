@@ -1,7 +1,7 @@
 use snafu::prelude::*;
 use std::str::FromStr;
 
-mod bad;
+pub mod bad;
 
 pub use bad::parse_date_bad;
 

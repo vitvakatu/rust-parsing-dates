@@ -18,3 +18,29 @@ pub fn parse_date_bad(raw: &str) -> Option<Date> {
     }
     parts.next().is_none().then_some(date)
 }
+
+pub struct Version {
+    pub major: u8,
+    pub minor: u8,
+}
+
+pub struct VersionParseError;
+
+impl FromStr for Version {
+    type Err = VersionParseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let [mut major, mut minor] = [0; 2];
+
+        for (idx, str) in s.split('_').enumerate() {
+            match (idx, str) {
+                (0, "VK" | "VKSC") => {}
+                (1, "VERSION") => {}
+                (2, major_str) => major = major_str.parse().unwrap(),
+                (3, minor_str) => minor = minor_str.parse().unwrap(),
+                _ => return Err(VersionParseError),
+            }
+        }
+        Ok(Version { major, minor })
+    }
+}
