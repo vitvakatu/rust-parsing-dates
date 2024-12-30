@@ -1,6 +1,8 @@
 use snafu::prelude::*;
+use std::str::FromStr;
 
 mod bad;
+
 pub use bad::parse_date_bad;
 
 #[derive(Debug, PartialEq)]
@@ -8,6 +10,23 @@ pub struct Date {
     year: u16,
     month: u16,
     day: u16,
+}
+
+impl FromStr for Date {
+    type Err = DateParseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        ensure!(!s.is_empty(), InputIsEmptySnafu);
+        let mut components = s.split('-');
+        let year = parse_date_component(&mut components, 1970..=9999, "year", 4)
+            .context(ComponentParseSnafu)?;
+        let month = parse_date_component(&mut components, 1..=12, "month", 2)
+            .context(ComponentParseSnafu)?;
+        let day = parse_date_component(&mut components, 1..=days_in_month(month, year), "day", 2)
+            .context(ComponentParseSnafu)?;
+        let date = Date { year, month, day };
+        Ok(date)
+    }
 }
 
 fn days_in_month(month: u16, year: u16) -> u16 {
@@ -89,19 +108,6 @@ fn parse_date_component<'a>(
     Ok(component)
 }
 
-pub fn parse_date_good(raw: &str) -> Result<Date, DateParseError> {
-    ensure!(!raw.is_empty(), InputIsEmptySnafu);
-    let mut components = raw.split('-');
-    let year = parse_date_component(&mut components, 1970..=9999, "year", 4)
-        .context(ComponentParseSnafu)?;
-    let month =
-        parse_date_component(&mut components, 1..=12, "month", 2).context(ComponentParseSnafu)?;
-    let day = parse_date_component(&mut components, 1..=days_in_month(month, year), "day", 2)
-        .context(ComponentParseSnafu)?;
-    let date = Date { year, month, day };
-    Ok(date)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -121,7 +127,7 @@ mod tests {
                 month: date[5..7].parse().unwrap(),
                 day: date[8..10].parse().unwrap(),
             };
-            let date_good = parse_date_good(date);
+            let date_good = Date::from_str(date);
             assert_eq!(date_good, Ok(expected));
         }
     }
@@ -137,7 +143,7 @@ mod tests {
             "1973-2-3",
         ];
         for date in dates {
-            let date_good = parse_date_good(date);
+            let date_good = Date::from_str(date);
             assert!(date_good.is_err());
         }
     }

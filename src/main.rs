@@ -1,5 +1,5 @@
 use parsing_dates::parse_date_bad;
-use parsing_dates::parse_date_good;
+use parsing_dates::Date;
 
 fn main() {
     let dates = [
@@ -12,7 +12,7 @@ fn main() {
         "1973-2-3",
     ];
     for date in dates {
-        let date_good = parse_date_good(date);
+        let date_good = date.parse::<Date>();
         let date_bad = parse_date_bad(date);
         println!("Date: {:?}", date);
         if let Ok(date_good) = date_good {
